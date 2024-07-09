@@ -1,1416 +1,651 @@
-# C++ Quirks
+---
+theme: seriph
+title: Segment-Tree and Sparse-table
+class: text-center
+highlighter: shiki
+drawings:
+  persist: false
+transition: slide-left
+mdc: true
+---
 
-## Table of contents
-
-- Bűbűjok / Spells
-  - Inicializáció
-  - Egyértelműsítés
-  - If / elágazások utasítás
-  - For ciklusok
-  - Switch case / Többágú elágazás
-- varázsigék / Intermediate Incantations
-  - Az `auto` kulcsszó
-  - Alternatív tokenek
-  - Preprocessor / Makrók
-- Mesteri Varázslatok / Masterful Magic
-  - Összehasonlítás lexikografikusan
-  - String escape karakterk + Raw string
-  - Intiger literálok
-  - vector<bool> csodái
-  - lambdák bevezető
-- Fekete mágia / Black Magic
-  - Tömb inicializálás
-  - Case ranges
-  - Elvis operátor
-  - Undefined behavior
-  - Intiger / unsigned overflow
-  - A típusok "nem" számítanak
-- Plusz
+# Levels Of Hardware Concurrency
 
 ---
 
-# Bűbűjok / Spells
+---
 
-A c++ és egyéb programozási alap műveletei
+### Quiz: Milyen gyors a következő program?
 
-## Inicializáció
-
-Elemek kezdeti érték adása
+O(n^2) algoritmus, 1 millió elemre. Háromszögszámok Kiszámíttása
 
 ```cpp
-int foo() {
-    int x;
-    return x;
+int main() {
+	int v[1'000'000];
+	for(int i = 0; i < 1'000'000; i++) {
+		for(int j = 0; j < i; j++) {
+			v[i] = (v[i] + j) % 1'000'0007;
+		}
+	}
+
+	return 0;
 }
 ```
 
-Ez így jó?!
+- A) 5-20 s
+- B) 1-5 s
+- C) 200-1000 ms
+- D) 50 - 200 ms
+- E) 5 - 50 ms
+- F) < 5 ms
+
+<v-click>
+
+- Nincs megfigyelhető melékhatás, és a fordíttó "as if" elven fordítt
+
+</v-click>
 
 ---
 
-### Pop quiz #1
+---
 
-Melyik változók értéke **NEM** 0?
+### Quiz: Milyen gyorsak a következő utasíttások? Állítsd sorrendbe
+
+Pl.: Szorzás < kivonás, bitszerinti és < osztás < összeadás
+
+- Összeadás
+- Kivonás
+- Bitszerinti és
+- Szorzás
+- Osztás
+
+---
+
+---
+
+Az eredmények 128 számíttásra értelmezettek
+
+| Benchmark  | Time    | CPU     | Iterations |
+| ---------- | ------- | ------- | ---------- |
+| add_bench  | 65.1 ns | 65.1 ns | 10086556   |
+| sub_bench  | 41.5 ns | 41.5 ns | 16866030   |
+| band_bench | 40.7 ns | 40.7 ns | 17262059   |
+| bor_bench  | 40.5 ns | 40.5 ns | 17214392   |
+| mul_bench  | 36.8 ns | 36.7 ns | 20222192   |
+| div_bench  | 184 ns  | 184 ns  | 3951897    |
+
+- Mit jelenthet ha a `Time` és a `CPU` értékek eltérnek?
+
+---
+
+---
+
+### Quiz: Mi történt?
+
+| Benchmark          | Time    | CPU     | Iterations |
+| ------------------ | ------- | ------- | ---------- |
+| mod_bench          | 177 ns  | 177 ns  | 3964187    |
+| mod_constant_bench | 98.9 ns | 98.9 ns | 7064763    |
+
+Változó értékkel / konstant értékkel vett modulo
+
+```cpp
+int a, b;
+cin >> a >> b;
+cout << a % b;
+```
 
 ```cpp
 int a;
+cin >> a;
+cout << a % 1000000007;
+```
 
-int b = 0;
-int c = {0};
-int d = {};
+<v-click>
 
-int e();
-int f{};
-int g(0);
-int h{0};
+- A konstans modulót a fordíttó lecseréli szorzás és bitshift műveletekre
+- Hasonlóképpen mint a `a = a / 2` Ugyan az mint `a = a >> 1`
 
-int (i);
-int ((j));
-int (((k)));
+</v-click>
 
-int l = false;
+---
 
-int main() {
-    int m;
+---
+
+### Quiz: Ha 1 művelet X idő akkor 2, vagy 4 szer ugyan az a művelet mennyi idő?
+
+- A) Ugyan annyi mint 1 darab
+- B) Annyiszorosa mint ahány darab
+- C) Nem tudom
+
+<v-click>
+
+| Benchmark    | Time    | CPU     | Iterations | Per operation |
+| ------------ | ------- | ------- | ---------- | ------------- |
+| add_bench    | 64.4 ns | 64.4 ns | 10916068   | 64.4 ns       |
+| addx2_bench  | 67.2 ns | 67.1 ns | 10692708   | 33.6 ns       |
+| addx4_bench  | 99.7 ns | 99.6 ns | 7522478    | 24.9 ns       |
+| addx8_bench  | 183 ns  | 183 ns  | 3837707    | 22.9 ns       |
+| addx16_bench | 369 ns  | 368 ns  | 1915196    | 23.1 ns       |
+
+</v-click>
+
+---
+
+---
+
+## [Superscalar execution](https://en.wikipedia.org/wiki/Superscalar_processor)
+
+- Több végrehajtó egység van minden processzor magban amelyek tudnak számíttásokat végezni
+- Latency vs Throughput
+
+---
+
+---
+
+## [Instruction pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining)
+
+Ciklusokon keresztül is működik feltéve, hogy nincs függőség
+
+```cpp
+std::vector<int> fib(100);
+fib[1] = 1;
+for(int i = 2; i < v.size(); i++) {
+	fib[i] = fib[i-1] + fib[i-2];
+}
+```
+
+- Gyenge függőség
+
+---
+
+---
+
+Erős függőség
+
+```cpp
+int i = 0;
+for (int z = 0; z < 10'000; z++) {
+  if (random_szamok[i] * 2 < 1'000'000'000) {
+	i += 1;
+  } else {
+	i += 2;
+  }
+}
+```
+
+- Nem tudni hogy a +1-edik vagy a +2edik elemet kell-e használni
+
+---
+
+---
+
+### Quiz: Adottak a következő mérések 4 int pár és 4 float pár összeadására, mennyi idő a kettő együtt?
+
+<v-switch>
+  <template #0>
+
+| Benchmark    | Time    | CPU     | Iterations | Per operation |
+| ------------ | ------- | ------- | ---------- | ------------- |
+| addx4_bench  | 92.9 ns | 92.9 ns | 7534969    | 23.2 ns       |
+| addfx4_bench | 171 ns  | 171 ns  | 4083067    | 42.8 ns       |
+
+</template>
+
+<template #1>
+
+| Benchmark          | Time    | CPU     | Iterations | Per operation |
+| ------------------ | ------- | ------- | ---------- | ------------- |
+| addx4_bench        | 92.9 ns | 92.9 ns | 7534969    | 23.2 ns       |
+| addfx4_bench       | 171 ns  | 171 ns  | 4083067    | 42.8 ns       |
+| bin_mixed_v0_bench | 216 ns  | 216 ns  | 3468772    | 27 ns         |
+
+</template>
+
+</v-switch>
+
+---
+
+---
+
+## [Out of order execution](https://en.wikipedia.org/wiki/Out-of-order_execution)
+
+- A fordíttó "as if" elvéhez hasonló
+- A processzor újra rendezheti a műveleteket, hogy a végrehajtás gyorsabb legyen
+
+- [Nézzük meg](https://www.anandtech.com/show/6355/intels-haswell-architecture/8)
+- Több ALU, FPU és SIMD egység is lehet
+
+---
+
+---
+
+## SIMD
+
+### Quiz: Melyik a leggyorsabb összeadás művelet?
+
+<v-clicks>
+
+<div>
+
+- A)
+
+```cpp
+for(int i = 0; i < 1'024; i++)
+	targets[i]+targets[i];
+```
+
+</div>
+
+<div>
+
+- B)
+
+```cpp
+for(int i = 0; i < 1'024 / 8; i++)
+  for(int j = 0; j < 8; j++)
+	  targets[i*8 + j] + targets[i*8 + j];
+```
+
+</div>
+
+<div>
+
+- C)
+
+```cpp
+for(int i = 0; i < 1'024 / 8; i+=8)
+  for(int j = 0; j < 8; j++)
+  	 targets[i + j] + targets[i + j];
+```
+
+</div>
+
+<div>
+
+- D)
+
+```cpp
+for (int i = 0; i < 1'024 / 8; i += 8) {
+	__m256i loaded = _mm256_loadu_si256((__m256i_u *)(data + i));
+	__m256i ans = _mm256_add_epi32(loaded, loaded);
+}
+```
+
+</div>
+</v-clicks>
+
+---
+
+---
+
+## Branch prediction
+
+### Quiz: Melyik a leggyorsabb művelet?
+
+- A)
+
+```cpp
+int i = 0;
+for (int z = 0; z < 10'000; z++) {
+  if (rng[i] < 1'000'000'000 - 1) { i += 1; } else { i += 2; }
+}
+```
+
+- B)
+
+```cpp
+int i = 0;
+for (int z = 0; z < 10'000; z++) {
+  if (rng[i] * 2* < 1'000'000'000) { i += 1; } else { i += 2; }
+}
+```
+
+- C)
+
+```cpp
+for (int z = 0; z < 10'000; z++) {
+  i += 1 + (rng[i] * 2 > 1'000'000'000);
 }
 ```
 
 ---
 
+---
+
+### Eszközök
+
+- C++20 -tól a nyelvnek része a `[[likely]]` és `[[unlikely]]` attribútum
+
 ```cpp
-int a;
-
-int b = 0;
-int c = {0};
-int d = {};
-
-int e(); // Ez egy függvény deklaráció
-int f{};
-int g(0);
-int h{0};
-
-int (i);
-int ((j));
-int (((k))); // Ez nem fordul le
-
-int l = false;
-
-int main() {
-    int m;
+if (a < 10) [[likely]] {
+  // ...
 }
 ```
+
+- Régebbi verziókon a `__builtin_expect`
+
+```cpp
+if (__builtin_expect(a < 10, 1)) {
+  // ...
+}
+```
+
+- `perf stat` a mérésre
 
 ---
 
-## Egyértelműsítés
+---
 
-```cpp
-int a();
-int ((a));
-```
+## Caches
 
-```cpp
-struct point {
-    int x, y;
-};
-
-// Típus és változó neve egyezik
-void do_something(point point) {
-    // ...
-}
-
-point q; // Ez még helyes
-pair<int, int> point;
-// vagy akár point point
-
-point p; // Nem fordul le, mert nem egyértelmű
-class point p; // Egyértelműsíttés
-
-// Minden nem alaptípusra rátehetjük
-class vector<class pair<int, int>>;
-```
+- Cache hierarchia
+- Cache Sebessége
+- Cache mérete
+- Cache egysége
 
 ---
 
-# If / elágazások utasítás
+---
+
+### Quiz: mekkora a különbség az előre és hátra olvasás között?
 
 ```cpp
-int a = 42, b = 1729;
-
-if (a == b) {
-  // do something
+for (int i = 0; i < n; ++i) {
+  data[i];
 }
-
-if (a) {
-    // do something
-}
-
-if (a == b) cout << a;
 ```
+
+vs
+
+```cpp
+for (int i = n - 1; i >= 0; --i) {
+  data[i];
+}
+```
+
+<v-click>
+
+- Semmi, a fordíttó és a CPU okos
+
+</v-click>
 
 ---
 
-```cpp
-if (int k = 2; k==2) {
-    // ...
-    cout << k;
-}
+---
 
-if(false; true) {
+### Eszközök
 
-}
-
-if(; true) {
-
-}
-```
-
-### Pop quiz #2
-
-Mi a leghasznosabb dolog amire használhatjuk ezt az inicializáoló mezőt?
-
-```cpp
-if (int k = 2; k==2) {
-    // ...
-    cout << k;
-}
-```
+- Perf stat cache-miss-eket is mér
+- `__builtin_prefetch` -el megkérhetjük a processzrot hogy olvasson be adatokat a cache-be
 
 ---
 
-```cpp
-int k = 0;
-if (struct Point {int x, y;}; k < 3) {
-    Point p = {k, k};
-    cout << p.x << ' ' << p.y;
-}
-```
+---
+
+### Quiz: Mi történt itt?
+
+Int ek és long long ok beolvasása
+
+<img src="/assets/int_vs_long.png" />
 
 ---
 
-## For ciklusok
+---
 
-```cpp
-for (int i = 0; i < 10; i++) {
-    cout << i << ' ';
-}
-cout << '\n';
-```
-
-```cpp
-for (int i = 0; i < 10; i++) {
-    cout << i << " \n"[i==9];
-}
-```
+<img src="/assets/enumerate_1d_wo_random.png" />
 
 ---
 
-```cpp
-for (<first-once>; <boolean expr>; <after-each>) {
-    // ...
-}
+---
 
-
-for (;;) {
-
-} // Végtelen ciklus
-// Hivatalosan a végtelen ciklus nem definiált viselkedés
-```
-
-```cpp
-for (struct Point {int x, y;} p = {1, 2}; p.x < 3; p.x++, p.y++) {
-    cout << p.x << ' ' << p.y;
-}
-```
+<img src="/assets/enumerate_1d_with_random.png" />
 
 ---
 
-```cpp
-#define ever (;;)
+---
 
-for ever {
-    cout << "Hello\n";
-}
-```
-
-[Ranged-based](https://en.cppreference.com/w/cpp/language/range-for) for ciklus
-
-```cpp
-vector<int> v = {1, 2, 3, 4, 5};
-for (int i : v) {
-    cout << i << ' ';
-}
-
-
-// c++ 20-tól ide is lehet írni egy inicializációs mezőt ';' -al elválasztva
-for (int i : v) {
-    i++;
-}
-```
+<img src="/assets/enumerate_2d_small.png" />
 
 ---
 
-Referenciák
+---
 
-```cpp
-int a = 4;
-int& b = a;
-b++;
-cout << a;
-
-
-vector<int> v(a)
-for (int& x : v) cin >> x;
-
-// referenciákal találkoztatokmár
-v[1]; // egy referencia
-v.back(); // is egy referencia
-v.back() = 12;
-
-// ha vector<vector<string>> lenne, akkor O(n) helyett O(n*m) ha nincs &
-```
+<img src="/assets/enumerate_2d.png" />
 
 ---
 
-Map konténerrel
+---
 
-```cpp
-map<string, int> mp;
-mp["hello"] = 42;
+# Binary Search
 
-// nice O(n*m) looping because of string copy
-for(pair<string, int> kv : mp) {
-    cout << kv.first << " " << kv.second << '\n';
-}
-```
-
-Mit csináljunk, hogy ne legyen másolás?
+- [Cpp talk](https://www.youtube.com/watch?v=1RIPMQQRBWk)
+- [hpc algorithmica](https://en.algorithmica.org/hpc/data-structures/binary-search/)
 
 ---
 
-```cpp
-map<string, int> mp;
-mp["hello"] = 42;
-
-// nice O(n) looping because of string copy
-for(pair<string, int>& kv : mp) {
-    cout << kv.first << " " << kv.second << '\n';
-}
-```
-
-Miért nem fordul?
-
 ---
 
-```cpp
-map<string, int> mp;
-mp["hello"] = 42;
-
-// nice O(n) looping because of string copy
-for(pair<const string, int>& kv : mp) {
-    cout << kv.first << " " << kv.second << '\n';
-}
-
-for(auto& kv : mp) {
-    cout << kv.first << " " << kv.second << '\n';
-}
-```
+## Linear Search
 
 ```cpp
-for(auto[key, value] : mp) {
-    cout << key << " " << value << '\n';
-}
-
-for(auto&[key, value] : mp) {
-    cout << key << " " << value << '\n';
-}
-```
-
----
-
-[Structured bindings](https://en.cppreference.com/w/cpp/language/structured_binding)
-
-```cpp
-pair<int, int> p = {1, 2}; // Ennek a hivatalos neve "Aggregate initialization"
-
-auto [x, y] = p; // Másolás
-// Mintha
-int x = p.first; // Ez természetesen nem fordul le
-int y = p.second;
-
-// Tényleges áttnevezésnek
-auto& [x, y] = p; // Referencia
-```
-
----
-
-```cpp
-// tuple-el és saját struktúrákkal is működik
-struct Point {
-    int x, y;
-};
-
-auto [x, y] = Point{1, 2};
-auto [x, y, z] = tuple<int, int, int>{1, 2, 3};
-```
-
----
-
-[Template argument deduction / TAD](https://en.cppreference.com/w/cpp/language/template_argument_deduction)
-
-```cpp
-auto [x, y, z] = tuple{1, 2, 3};
-vector v = {1, 2, 3, 4, 5};
-```
-
----
-
-# Switch case / Többágú elágazás
-
-```cpp
-int k = 2;
-switch (k) {
-    case 1:
-        cout << "One";
-        break;
-    case 2:
-        cout << "Two";
-        break;
-    case 3:
-        cout << "Three";
-        break;
-}
-```
-
-Csak alap típusokkal működik, pl string nem
-
----
-
-```cpp
-int k = 9;
-switch (k) {
-    case 1:
-        cout << "One";
-        break;
-    case 2:
-        cout << "Two";
-        break;
-    case 3:
-        cout << "Three";
-        break;
-    default:
-        cout << "Default";
-}
-```
-
----
-
-```cpp
-int k = 2;
-switch (k) {
-    case 1:
-        int r = 42; // Nem fordul
-        cout << "One";
-        break;
-    case 2:
-        cout << "Two";
-        break;
-    case 3:
-        cout << "Three";
-        break;
-    default:
-        cout << "Default";
-}
-```
-
-Scope-ok
-
-- pl for ciklus, vagy main függvény
-
----
-
-**Scoping**
-
-Valójában csak a {} bokkok.
-
-Az első hasznos dolog:
-Zárójeleket bárhova tehetunk, ahhoz hogy saját scope-ot hozzunk létre
-
-Valójában az if és for-nál is ezt csináljuk
-
-```cpp
-int k = 2;
-switch (k) {
-    case 1: {
-        int r = 42; // így igen
-        cout << "One";
-    } break;
-    case 2: {
-        cout << "Two";
-    } break;
-    case 3: {
-        cout << "Three";
-    } break;
-    default: {
-        cout << "Default";
+int linear(const std::vector<int> &data, int target) {
+  for (int i = 0; i < static_cast<int>(data.size()); ++i) {
+    if (data[i] == target) {
+      return i;
     }
+  }
+  return data.size();
 }
 ```
 
 ---
 
-# varázsigék / Intermediate Incantations
-
-## Az `auto` kulcsszó
-
-```cpp
-    int a = 42;
-    auto b = a;
-
-    vector<int> v = {1, 2, 3, 4, 5};
-    auto v2 = {1, 2, 3, 4, 5}; // Ez nem egy vector
-    auto v3 = vector<int>{1, 2, 3, 4, 5}; // Ez egy vector
-    auto v4 = vector{1, 2, 3, 4, 5}; // Ez egy vector
-```
-
 ---
 
-```cpp
-auto add(int a, int b) {
-    return a + b;
-}
-
-auto a = add(1, 2);
-```
-
----
+## Standard
 
 ```cpp
-auto add(auto a, auto b) {
-    return a + b;
-}
-
-string s1 = "hello";
-string s2 = "world";
-auto b = add(s1, s2);
-```
-
----
-
-## Alternatív tokenek
-
-A teljes [lista](https://en.cppreference.com/w/cpp/language/operator_alternative)
-
-```cpp
-bool visited = false;
-if(not visited) { // ! visited
-    // ...
-}
-
-bool seen = false;
-if(seen or visited) { // seen || visited
-    // ...
+template <typename T = int>
+int standard(const std::vector<T> &data, T target) {
+  const auto idx =
+      std::lower_bound(data.begin(), data.end(), target) - data.begin();
+  return data[idx] == target ? idx : data.size();
 }
 ```
 
 ---
 
-### Pop quiz #3
+---
 
-Mire használjuk az alternatív tokeneket?
-
-```cpp
-// A bit műveletekre is van alternatív token
-// pl
-int x = 2 | 1;
-int y = 2 bitor 1;
-
-```
+<img src="/assets/binsearch_standard_vs_linear.png" />
 
 ---
 
-```cpp
-// természetesen semmi hasznosra
-
-// referencia típusokra
-vector<int> v(5);
-for (int bitand x : v) cin >> x;
-for (int & x : v) cin >> x;
-```
-
 ---
 
-```cpp
-vector v = <% 1, 2, 3, 4, 5 %>;
-//          { 1, 2, 3, 4, 5 };
-
-for (int i = 0; i < v.size(); i++) <%
-  cout << i << "th element: " << v<:i:> << endl;
-//                               v[ i ]
-%>
-```
-
----
-
-## Preprocessor / Makrók
-
-**define** szöveg beheyltesítés
+## Usaco
 
 ```cpp
-#define PI 3.1415
-
-cout << PI;
-```
-
-```cpp
-#define PI 3.1415 + 0.0001
-
-cout << 3*PI;
-```
-
-```cpp
-#define PI 3.1415 + 0.0001
-
-cout << 3*3.1415 + 0.0001;
-```
-
----
-
-**include** szöveg behelyettesítés fileból
-
-```cpp
-// "closing.h"
-}
-```
-
-```cpp
-// main.cpp
-int main() {
-
-    return 0;
-
-#include "closing.h"
-```
-
----
-
-# Mesteri Varázslatok / Masterful Magic
-
-## Összehasonlítás lexikografikusan
-
-```cpp
-    string s = "hello";
-    string s2 = "world";
-
-    cout << (s < s2);
-```
-
-```cpp
-    vector<int> v = {1, 2, 3, 4};
-    vector<int> v2 = {1, 2, 3, 5, 1};
-
-    cout << (v < v2);
-```
-
-```cpp
-    pair<int, int> p = {1, 2};
-    pair<int, int> p2 = {1, 3};
-
-    tuple<int, string, float> t = {1, "hello", 3.14};
-    tuple<int, string, float> t2 = {1, "world", 3.14};
-
-    cout << (p < p2);
-    cout << (t < t2);
-```
-
----
-
-Saját összehasonlítást tudunk ezzel írni
-
-```cpp
-Struct Point {
-    int x, y, z;
-};
-
-bool kisebb(Point a, Point b) {
-    return (a.x < b.x) or (a.x == b.x and a.y < b.y) or (a.x == b.x and a.y == b.y and a.z < b.z);
-}
-```
-
-```cpp
-struct Point {
-    int x, y, z;
-};
-
-bool kisebb(Point a, Point b) {
-    tuple t1 = {a.x, a.y, a.z};
-    tuple t2 = {b.x, b.y, b.z};
-    return a.x < b.x;
-}
-```
-
-- Ez így rendben van, de ha nem int, name string lenne, akkor?
-- Ez itt mind másolás így string vagy vector esetén lassebb lenne
-
----
-
-```cpp
-struct Point {
-    int x, y, z;
-};
-
-bool kisebb(Point a, Point b) {
-    return tie(a.x, a.y, a.z) < tie(b.x, b.y, b.z);
-}
-```
-
----
-
-# Stringek és escape karakterek
-
-```cpp
-cout << "Hello\nWorld";
-//    Hello
-//    World
-
-
-cout << "Hello\tWorld";
-//   Hello   World
-
-// Ha \n-t akarunk kiírni
-cout << "Hello\\nWorld";
-//     Hello\nWorld
-
-// Valójában minden \-t kétszer
-
-cout << "\"Hello\"";
-//        "Hello"
-```
-
----
-
-[Raw string literals](https://en.cppreference.com/w/cpp/language/string_literal)
-
-```cpp
-cout << R"(Hello\nWorld)";
-// kiír: Hello\nWorld
-
-// A sima stringgel elentétben még többsoros is lehet
-string s = R"(Hello
-World
-How
-are
-"you"?)";
-```
-
----
-
-### Pop quiz #4
-
-Tegyük fel hogy nem tudtuk hogy így is lehet több soros stringet csinálni, hogyan csináltuk volna?
-
----
-
-```cpp
-string s = "Hello\nWorld\nHow\nare\nyou?";
-```
-
-```cpp
-// nem fordul
-string s =  "Hello\n"
-          + "World\n"
-          + "How\n"
-          + "are\n"
-          + "you?";
-```
-
-```cpp
-using namespace std::literals;
-
-string s =  "Hello\n"s
-          + "World\n"
-          + "How\n"
-          + "are\n"
-          + "you?";
-```
-
-```cpp
-string s = "Hello\n"
-           "World\n"
-           "How\n"
-           "are\n"
-           "you?";
-```
-
----
-
-## vector<bool> csodái
-
-- Egy bool 1 byte de csak 1 bitet használ
-- Így a vector<bool> ra optimalizált megoldást használnak
-- Ahol 1 biten tárolják, viszont cserébe nem bool okat tartalmaz
-- Ez szinte sosem probléma
-
-```cpp
-vector<bool> v = {true, false, false};
-v[1] = true;
-for (bool b : v) {
-    cout << b << ' ';
-}
-// Minden működik, kivétel
-bool& x = v[1]; // Ez nem fordul le
-
-
-// Ez sem fordul
-for(bool& b : v) {
-    cout << b << ' ';
-}
-
-// Ez helyes és az elvárt módon működik
-for(auto& b : v) {
-    cout << b << ' ';
-}
-```
-
-- Bárcsak lenne egy vectorhoz hasonló konténer
-- ami elemeket tárol és tud nőni
-
----
-
-```cpp
-string s = "Hello";
-char& c = s[1];
-
-basic_string<bool> v = {true, false, false};
-bool& x = v[1];
-
-for (bool& b : v) {
-    cout << b << ' ';
-}
-```
-
----
-
-# Mesteri Varázslatok / Masterful Magic
-
-## Literálok
-
-### Pop quiz #5
-
-Mi a típusa az alábbi változóknak?
-
-```cpp
-auto a = 1;
-auto b = 1u;
-auto c = 1U;
-auto c = 1LL;
-auto d = 1.0;
-auto e = 1.0f;
-auto f = 1e9 + 7;
-```
-
-```cpp
-int a = 1;
-unsigned  b = 1u;
-unsigned c = 1U;
-long long c = 1LL;
-double d = 1.0;
-float e = 1.0f;
-double f = 1e9 + 7;
-```
-
----
-
-### Pop quiz #6
-
-Mennyi a + b + c?
-
-```cpp
-int a = 001;
-int b = 010;
-int c = 100;
-cout << a + b + c;
-```
-
-```cpp
-int a = 001;
-int b = 010;
-int c = 100;
-cout << a + b + c;
-// 109
-```
-
----
-
-[Int literálok](https://en.cppreference.com/w/cpp/language/integer_literal)
-
-```cpp
-int large  = 1'000'000;
-int binary = 0b1010;
-int octal =  011230;
-int hex =    0x123f;
-int binary = 0b1010'1010'1010'1010'1010'1010'1010'1010;
-```
-
----
-
-## Ternaly operator
-
-```cpp
-// Az "egysoros if"
-int a = 42;
-int b = (a == 42) ? 3 : 27;
-// Az igaz és hamis típusának pontosan egyeznie kell
-// Vagyis néha, nem mindig
-```
-
-Az operátor állhat az egyenlőség bal oldalán is, feltéve, hogy az igaz hamis ág típusai pontosan megegyeznek, és tudunk hozzájuk értéket rendelni. (refereciák)
-
----
-
-```cpp
-float a = -1.0f;
-int b;
-(false ? a : b) = 42; // nem egyenlő típusok
-
-(false ? 3 : 4) = 42; // nem referenciák, nem adhatunk értéket a 3-nak
-
-
-int c = 5;
-(a < 0.1f ? a : c) = 42; // Ez helyes
-```
-
----
-
-## Lambdák (Opcionális)
-
-```cpp
-auto cmp = [](pair<int, int> a, pair<int, int> b) {
-    return a.second < b.second;
-};
-
-// Ugyan az mint
-
-bool cmp(pair<int, int> a, pair<int, int> b) {
-    return a.second < b.second;
-}
-
-vector<pair<int, int>> v = {{1, 2}, {3, 4}, {5, 6}};
-sort(v.begin(), v.end(), [](pair<int, int> a, pair<int, int> b) {
-    return a.second < b.second;
-});
-```
-
----
-
-```cpp
-// This is c++20
-auto add = [&]<class T>(T a, auto&&... as) -> decltype(auto) { return (a + ... + as);};
-
-int sum = add(1, 2, 3, 4, 5);
-cout << sum;
-
-int sum1 = [&]<class T>(T a, auto&&... as) -> decltype(auto) { return (a + ... + as);}(1, 2, 3, 4, 5);
-
-
-// in c++17
-auto add = [&](auto a, auto&&... as) -> decltype((a + ... + as)) { return (a + ... + as);};
-
-```
-
-Nagyon bonyolultakat is tudunk csinálni
-
----
-
-Macros
-
-```cpp
-#define LOG(x) cout << x << '\n'
-
-int main() {
-    int k = 42;
-    LOG(k);
-//  cout << k << '\n';
-    return 0;
-}
-```
-
-```cpp
-#define LOG(x) cout << x << '\n'
-
-int main() {
-    int k = 42;
-    LOG(k << 1);
-//  cout << k << 1 << '\n';
-    return 0;
-}
-```
-
-```cpp
-#define LOG(x) cout << (x) << '\n'
-
-int main() {
-    int k = 42;
-    LOG(k << 1);
-//  cout << (k << 1) << '\n';
-    return 0;
-}
-```
-
----
-
-```cpp
-#define L(X) cout << #x << " = " << (x) << '\n';
-
-int main() {
-    string s = "hello";
-    L(s);
-//  cout << "s" << " = " << (s) << '\n';
-    return 0;
-}
-```
-
----
-
-Többsoros makró
-
-```cpp
-#define LOG(x) cout << "{: "; cout << (x); cout << " :}\n";
-
-// Lehet így is:
-#define LOG(x) cout << "{: "; \
-cout << (x); \
-cout << " :}\n";
-```
-
----
-
-### Pop quiz #7
-
-Hogyan tudunk kitolni magunkal egy ilyen makróval?
-
-```cpp
-#define LOG(x) cout << "{: "; cout << (x); cout << " :}\n";
-
-int main() {
-    int k = 42
-    if (k == 42) {
-        LOG(k);
-    }
-
-    for(int i = 0; i < 10; i++) LOG(i);
-
-    return 0;
-}
-```
-
----
-
-Írhatunk köré egy scope-ot mint a case-eknél a switch-ben
-
-```cpp
-#define LOG(x) {cout << "{: "; cout << (x); cout << " :}\n"};
-
-int main() {
-    for(int i = 0; i < 10; i++) LOG(i);
-
-    return 0;
-}
-```
-
-Látszólag működik, kivétel ha
-
----
-
-```cpp
-#define LOG(x) {cout << "{: "; cout << (x); cout << " :}\n";}
-
-int main() {
-    int k = 10;
-    if (k == 10)
-        LOG(k); // Ez itt syntax error
-    else
-        cout << "Not 10\n";
-
-    return 0;
-}
-```
-
-```cpp
-int main() {
-    int k = 10;
-    if (k == 10)
-        {cout << "{: "; cout << (x); cout << " :}\n";};
-    else
-        cout << "Not 10\n";
-
-    return 0;
-}
-```
-
-```cpp
-int main() {
-    int k = 10;
-    if (k == 10) {
-        cout << "{: ";
-        cout << (x);
-        cout << " :}\n";
-    }; else
-        cout << "Not 10\n";
-
-    return 0;
-}
-```
-
----
-
-Az egyetlen alkalom a do-while ciklusra
-
-```cpp
-#define LOG(x) do {cout << "{: "; cout << (x); cout << " :}\n";} while(0)
-```
-
-Így már minden esetben helyes
-
----
-
-# Fekete mágia / Black Magic
-
-## Tömb inicializálás
-
-NEM standard c++, de majdnem mindenhol működik
-
-```cpp
-// designated array initializer
-// This only works in clang
-int arr[] = {
-    [8] = 3,
-    [5] = 2,
-    [9] = 6
-};
-
-int arr[] = { [0 ... 12] = 3 };
-```
-
----
-
-In GCC
-
-```cpp
-// Kötelezően sorban, 0-tól
-int arr[] = {
-    [0] = 1,
-    [1] = 2,
-    [2] = 3
-};
-```
-
----
-
-## Case ranges
-
-```cpp
-int v = 2;
-char ch = 'd';
-
-switch(v)  {
-case 1:
-  cout << "one" << endl;
-  break;
-case 2 ... 3:
-  cout << "two or three" << endl;
-  break;
-default:
-  cout << "default" << endl;
-}
-
-
-switch (ch) {
-case 'a' ... 'z':
-  cout << "lowercase" << endl;
-  break;
-case 'A' ... 'Z':
-  cout << "uppercase" << endl;
-  break;
-}
-```
-
----
-
-## Elvis operátor
-
-```cpp
-// Ha egy random = 0, akkor -1 et adjunk, vissza egyébként a számot
-
-int test_random() {
-    if (rand() == 0) {
-        return rand();
+int usaco(const std::vector<T> &data, int target) {
+  int lo = 0, hi = data.size();
+  while (lo < hi) {
+    int mid = lo + (hi - lo) / 2;
+    if (data[mid] >= target) {
+      hi = mid;
     } else {
-        return -1;
+      lo = mid + 1;
     }
+  }
+  return data[lo] == target ? lo : data.size();
 }
-
-// rand() egy beépített (c) függvény a stdlib.h-ból
-// 0 -tól RAND_MAX (32767) -ig ad vissza egy random int-et
 ```
 
+---
+
+---
+
+<img src="/assets/with_usaco_small.png" />
+
+---
+
+---
+
+## Iterative v0
+
 ```cpp
-int test_random() {
-    if (auto x = rand(); x == 0) {
-        return x;
-    } else {
-        return -1;
+int iterative_v0(const std::vector<int> &data, int target) {
+  int pred = 0;
+  for (int k = 30; k >= 0; --k) {
+    auto idx = pred + (1 << k);
+    if (idx < (int)data.size() && data[idx] <= target) {
+      pred = idx;
     }
-}
-```
-
-```cpp
-int test_random() {
-    auto x = rand();
-    return x ? x : 0;
+  }
+  return data[pred] == target ? pred : data.size();
 }
 ```
 
 ---
 
-Az elvis operátor
-Nem standard de mindenhol elérhető
+---
+
+<img src="/assets/with_iterative_v0_small.png" />
+
+---
+
+---
+
+## Iterative v1
 
 ```cpp
-int test_random() {
-    return rand() ?: 0;
+int iterative_v1(const std::vector<int> &data, int target) {
+  const int n = data.size();
+  int pred = 0;
+  for (int k = 1 << 30; k > 0; k /= 2) {
+    pred += (pred + k < n && data[pred + k] <= target) * k;
+  }
+  return data[pred] == target ? pred : data.size();
 }
 ```
 
 ---
 
-### Pop quiz #8
+---
 
-Mi y értéke?
+<img src="/assets/with_iterative_v1_small.png" />
+
+---
+
+---
+
+## Iterative V2
 
 ```cpp
-int main() {
-    int x = 1;
-    int y = x+++++x;
-    cout << y;
+int iterative_v2(const std::vector<int> &data, int target) {
+  const int *ptr = data.data();
+  int len = data.size();
+  while (len > 1) {
+    int half = len / 2;
+    ptr += (ptr[half - 1] < target) * half;
+    len -= half;
+  }
+  return *ptr == target ? ptr - data.data() : data.size();
 }
 ```
 
 ---
 
-## Undefined behavior
+---
 
-Tipikusan 4, de nem kötelező
-
-```cpp
-void print(int a, int b) {
-    cout << a << ' ' << b << '\n';
-}
-
-int main() {
-    int x = 1;
-    int y = x++  + ++x;
-    cout << y << '\n';
-    // y
-    // GCC szerint 4
-    // Clang szerint 4
-
-    x = 1;
-    print(x++, ++x);
-    // GCC szerint 2 3
-    // Clang szerint 1 3
-}
-```
+<img src="/assets/binsearch_all_small.png" />
 
 ---
 
-vessző operátor vs vessző szeparátor
+---
 
-```cpp
-
-int a = 1;
-int x = 1;
-a = x++, ++x; // Ez jól definiált, balról jobbra
-cout << a; // 1
-```
-
-Jól definiált de rosszul zárójelezett
-A `,` operátor a legkisebb precedenciájú operátor
-
-```cpp
-
-int a = 1;
-int x = 1;
-a = (x++, ++x); // Ez jól definiált, balról jobbra
-cout << a; // 3
-```
+<img src="/assets/binsearch_all_medium.png" />
 
 ---
 
-## Intiger overflow
+---
 
-```cpp
-bool is_intmax(int x){
-    if(x > x + 1) {
-        return true;
-    }
-    return false;
-}
-
-
-int main() {
-    cout << is_intmax(1) << '\n';
-    cout << is_intmax(INT_MAX) << '\n';
-}
-```
-
-### Pop quiz #9
-
-Mi lesz az eredménye?
-
-```cpp
-bool is_intmax(int x){
-    if(x > x + 1) {
-        return true;
-    }
-    return false;
-}
-
-
-int main() {
-    cout << is_intmax(1) << '\n';
-    cout << is_intmax(INT_MAX) << '\n';
-}
-```
+<img src="/assets/binsearch_all_large.png" />
 
 ---
 
-Az int overflow az unsigned int-el ellentétben undefined behavior
+---
 
-Ez azt jelenti, hogy a fordíttó feltételezi, hogy nem történik meg
-
-```cpp
-// Így x < x + 1 mindig igaz
-// És a fordító ez ki optimalizálja
-bool is_intmax(int x){
-    if(x > x + 1) {
-        return true;
-    }
-    return false;
-}
-
-// A fordító ezt így értelmezi
-bool is_intmax(int x){
-    return false;
-}
-```
+- Eytzinger layout
+- B+ Tree
+- SIMD
+- [Cpp talk](https://www.youtube.com/watch?v=1RIPMQQRBWk)
+- [hpc algorithmica](https://en.algorithmica.org/hpc/data-structures/binary-search/)
 
 ---
 
-### Pop quiz #10
+---
 
-Mi a hiba?
-
-```cpp
-for (unsigned i = 10; i >= 0; i--) {
-    cout << i << ' ';
-}
-```
+<img src="/assets/binsearch_fast.png" />
 
 ---
 
-## Unsigned intiger over / underflow
+---
 
-```cpp
-for (unsigned i = 10; ~i; i--) {
-    cout << i << ' ';
-}
-```
+## Hyperthreading
 
-## A típusok "nem" számítanak
-
-```cpp
-// tuple, pair, and any aggretate (custom struct)
-
-// vector "cannot be destructued"
-vector<int> v = {1, 2, 3, 4, 5};
-// note the reversed parameter order
-
-auto[three, two, one] = *(tuple<int, int, int>*)(v.data());
-
-
-auto[three, two, one] = take<3>(v); // Az implementáció linkelve
-```
+- Számunkra csak akkor hasznos ha io-bound vagy memory-bound a program
 
 ---
 
-# More
+---
 
-Other interesting but harder
-remaining keyword c++20
+## MultiThreading
+
+### Quiz: Ha egy thread X idő alatt számol el 1'000 ig, akkor 2 thread Mennyi idő alatt?
 
 ```cpp
-alignas
-alignof
-asm
-catch
-concept (C++20)
-const
-consteval (C++20)
-constexpr
-constinit (C++20)
-const_cast
-co_await (C++20)
-co_return (C++20)
-co_yield (C++20)
-decltype
-delete
-dynamic_cast
-enum
-explicit
-export
-extern
-friend
-goto
-inline
-mutable
-namespace
-new
-noexcept
-operator
-register
-reinterpret_cast
-requires (C++20)
-sizeof
-static
-static_assert
-static_cast
-template
-thread_local
-throw
-try
-typedef
-typeid
-typename
-union
-using
-virtual
-volatile
+int arr[2];
+
+start_counting(arr[0], 1'000);
+start_counting(arr[1], 1'000);
 ```
 
-[keywords](https://en.cppreference.com/w/cpp/keyword)
+<v-click>
 
-https://en.cppreference.com/w/cpp/language/decltype + decltype(auto)
-https://en.cppreference.com/w/cpp/language/fold
-https://en.cppreference.com/w/cpp/language/parameter_pack
-https://en.cppreference.com/w/cpp/language/lambda
-take C style arrays as reference to a function without it decaying to a pointer
-A `constexpr` nagyon hasznos, de versenyen nem éri meg ezzel foglalkozni.
+- [MESI](https://en.wikipedia.org/wiki/MESI_protocol)
+
+</v-click>
+
+---
+
+---
+
+## Kitekintés
+
+- [Uops](https://uops.info/table.html)
+- [In depth](https://www.agner.org/optimize/instruction_tables.pdf)
+
+---
+
+---
+
+### C++ érdekesség
 
 ```cpp
-if constexpr (false) {
+struct spec {
+    int n;
+    int min;
+    int max;
+};
 
-} else {
-
+std::vector<int> random_range(spec s) {
+    // ...
 }
+
+auto rng = random_range({
+	.n = 1'000'000,
+	.min = 0,
+	.max = 1'000'000'000}
+);
 ```
