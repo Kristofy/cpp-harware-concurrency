@@ -12,11 +12,13 @@ mdc: true
 # Levels Of Hardware Concurrency
 
 ---
+
 ---
 
 ### Quiz: Milyen gyors a következő program?
 
 O(n^2) algoritmus, 1 millió elemre. Háromszögszámok Kiszámíttása
+
 ```cpp
 int main() {
 	int v[1'000'000];
@@ -30,12 +32,12 @@ int main() {
 }
 ```
 
-* A) 5-20 s
-* B) 1-5 s
-* C) 200-1000 ms
-* D) 50 - 200 ms
-* E) 5 - 50 ms
-* F) < 5 ms
+- A) 5-20 s
+- B) 1-5 s
+- C) 200-1000 ms
+- D) 50 - 200 ms
+- E) 5 - 50 ms
+- F) < 5 ms
 
 <v-click>
 
@@ -43,21 +45,22 @@ int main() {
 
 </v-click>
 
-
 ---
+
 ---
 
 ### Quiz: Milyen gyorsak a következő utasíttások? Állítsd sorrendbe
 
 Pl.: Szorzás < kivonás, bitszerinti és < osztás < összeadás
 
-* Összeadás
-* Kivonás
-* Bitszerinti és
-* Szorzás
-* Osztás
+- Összeadás
+- Kivonás
+- Bitszerinti és
+- Szorzás
+- Osztás
 
 ---
+
 ---
 
 Az eredmények 128 számíttásra értelmezettek
@@ -74,6 +77,7 @@ Az eredmények 128 számíttásra értelmezettek
 - Mit jelenthet ha a `Time` és a `CPU` értékek eltérnek?
 
 ---
+
 ---
 
 ### Quiz: Mi történt?
@@ -105,13 +109,14 @@ cout << a % 1000000007;
 </v-click>
 
 ---
+
 ---
 
 ### Quiz: Ha 1 művelet X idő akkor 2, vagy 4 szer ugyan az a művelet mennyi idő?
 
-* A) Ugyan annyi mint 1 darab
-* B) Annyiszorosa mint ahány darab
-* C) Nem tudom
+- A) Ugyan annyi mint 1 darab
+- B) Annyiszorosa mint ahány darab
+- C) Nem tudom
 
 <v-click>
 
@@ -126,15 +131,16 @@ cout << a % 1000000007;
 </v-click>
 
 ---
+
 ---
 
 ## [Superscalar execution](https://en.wikipedia.org/wiki/Superscalar_processor)
-
 
 - Több végrehajtó egység van minden processzor magban amelyek tudnak számíttásokat végezni
 - Latency vs Throughput
 
 ---
+
 ---
 
 ## [Instruction pipelining](https://en.wikipedia.org/wiki/Instruction_pipelining)
@@ -152,6 +158,7 @@ for(int i = 2; i < v.size(); i++) {
 - Gyenge függőség
 
 ---
+
 ---
 
 Erős függőség
@@ -170,6 +177,7 @@ for (int z = 0; z < 10'000; z++) {
 - Nem tudni hogy a +1-edik vagy a +2edik elemet kell-e használni
 
 ---
+
 ---
 
 ### Quiz: Adottak a következő mérések 4 int pár és 4 float pár összeadására, mennyi idő a kettő együtt?
@@ -177,15 +185,14 @@ for (int z = 0; z < 10'000; z++) {
 <v-switch>
   <template #0>
 
-| Benchmark          | Time    | CPU     | Iterations | Per operation |
-| ------------------ | ------- | ------- | ---------- | ------------- |
-| addx4_bench        | 92.9 ns | 92.9 ns | 7534969    | 23.2 ns       |
-| addfx4_bench       | 171 ns  | 171 ns  | 4083067    | 42.8 ns       |
+| Benchmark    | Time    | CPU     | Iterations | Per operation |
+| ------------ | ------- | ------- | ---------- | ------------- |
+| addx4_bench  | 92.9 ns | 92.9 ns | 7534969    | 23.2 ns       |
+| addfx4_bench | 171 ns  | 171 ns  | 4083067    | 42.8 ns       |
 
 </template>
 
-<template #1> 
-
+<template #1>
 
 | Benchmark          | Time    | CPU     | Iterations | Per operation |
 | ------------------ | ------- | ------- | ---------- | ------------- |
@@ -197,8 +204,8 @@ for (int z = 0; z < 10'000; z++) {
 
 </v-switch>
 
-
 ---
+
 ---
 
 ## [Out of order execution](https://en.wikipedia.org/wiki/Out-of-order_execution)
@@ -210,6 +217,7 @@ for (int z = 0; z < 10'000; z++) {
 - Több ALU, FPU és SIMD egység is lehet
 
 ---
+
 ---
 
 ## SIMD
@@ -220,7 +228,7 @@ for (int z = 0; z < 10'000; z++) {
 
 <div>
 
-* A)
+- A)
 
 ```cpp
 for(int i = 0; i < 1'024; i++)
@@ -231,18 +239,19 @@ for(int i = 0; i < 1'024; i++)
 
 <div>
 
-* B)
+- B)
 
 ```cpp
 for(int i = 0; i < 1'024 / 8; i++)
   for(int j = 0; j < 8; j++)
 	  targets[i*8 + j] + targets[i*8 + j];
 ```
+
 </div>
 
 <div>
 
-* C)
+- C)
 
 ```cpp
 for(int i = 0; i < 1'024 / 8; i+=8)
@@ -250,12 +259,11 @@ for(int i = 0; i < 1'024 / 8; i+=8)
   	 targets[i + j] + targets[i + j];
 ```
 
-
 </div>
 
 <div>
 
-* D)
+- D)
 
 ```cpp
 for (int i = 0; i < 1'024 / 8; i += 8) {
@@ -263,16 +271,20 @@ for (int i = 0; i < 1'024 / 8; i += 8) {
 	__m256i ans = _mm256_add_epi32(loaded, loaded);
 }
 ```
+
 </div>
 </v-clicks>
 
 ---
+
 ---
 
 ## Branch prediction
+
 ### Quiz: Melyik a leggyorsabb művelet?
 
-* A)
+- A)
+
 ```cpp
 int i = 0;
 for (int z = 0; z < 10'000; z++) {
@@ -280,7 +292,8 @@ for (int z = 0; z < 10'000; z++) {
 }
 ```
 
-* B)
+- B)
+
 ```cpp
 int i = 0;
 for (int z = 0; z < 10'000; z++) {
@@ -288,7 +301,8 @@ for (int z = 0; z < 10'000; z++) {
 }
 ```
 
-* C)
+- C)
+
 ```cpp
 for (int z = 0; z < 10'000; z++) {
   i += 1 + (rng[i] * 2 > 1'000'000'000);
@@ -296,6 +310,7 @@ for (int z = 0; z < 10'000; z++) {
 ```
 
 ---
+
 ---
 
 ### Eszközök
@@ -308,7 +323,7 @@ if (a < 10) [[likely]] {
 }
 ```
 
-- Régebbi verziókon a `__builtin_expect` 
+- Régebbi verziókon a `__builtin_expect`
 
 ```cpp
 if (__builtin_expect(a < 10, 1)) {
@@ -318,8 +333,8 @@ if (__builtin_expect(a < 10, 1)) {
 
 - `perf stat` a mérésre
 
-
 ---
+
 ---
 
 ## Caches
@@ -330,6 +345,7 @@ if (__builtin_expect(a < 10, 1)) {
 - Cache egysége
 
 ---
+
 ---
 
 ### Quiz: mekkora a különbség az előre és hátra olvasás között?
@@ -340,7 +356,7 @@ for (int i = 0; i < n; ++i) {
 }
 ```
 
-vs 
+vs
 
 ```cpp
 for (int i = n - 1; i >= 0; --i) {
@@ -350,12 +366,12 @@ for (int i = n - 1; i >= 0; --i) {
 
 <v-click>
 
-* Semmi, a fordíttó és a CPU okos
+- Semmi, a fordíttó és a CPU okos
 
 </v-click>
 
-
 ---
+
 ---
 
 ### Eszközök
@@ -364,6 +380,7 @@ for (int i = n - 1; i >= 0; --i) {
 - `__builtin_prefetch` -el megkérhetjük a processzrot hogy olvasson be adatokat a cache-be
 
 ---
+
 ---
 
 ### Quiz: Mi történt itt?
@@ -373,39 +390,40 @@ Int ek és long long ok beolvasása
 <img src="/assets/int_vs_long.png" />
 
 ---
+
 ---
 
 <img src="/assets/enumerate_1d_wo_random.png" />
 
-
-
 ---
+
 ---
 
 <img src="/assets/enumerate_1d_with_random.png" />
 
 ---
----
 
+---
 
 <img src="/assets/enumerate_2d_small.png" />
 
 ---
+
 ---
 
 <img src="/assets/enumerate_2d.png" />
 
 ---
----
 
+---
 
 # Binary Search
 
 - [Cpp talk](https://www.youtube.com/watch?v=1RIPMQQRBWk)
 - [hpc algorithmica](https://en.algorithmica.org/hpc/data-structures/binary-search/)
 
-
 ---
+
 ---
 
 ## Linear Search
@@ -422,6 +440,7 @@ int linear(const std::vector<int> &data, int target) {
 ```
 
 ---
+
 ---
 
 ## Standard
@@ -436,13 +455,14 @@ int standard(const std::vector<T> &data, T target) {
 ```
 
 ---
+
 ---
 
 <img src="/assets/binsearch_standard_vs_linear.png" />
 
 ---
----
 
+---
 
 ## Usaco
 
@@ -461,14 +481,14 @@ int usaco(const std::vector<T> &data, int target) {
 }
 ```
 
-
----
 ---
 
+---
 
 <img src="/assets/with_usaco_small.png" />
 
 ---
+
 ---
 
 ## Iterative v0
@@ -486,15 +506,15 @@ int iterative_v0(const std::vector<int> &data, int target) {
 }
 ```
 
-
 ---
+
 ---
 
 <img src="/assets/with_iterative_v0_small.png" />
 
 ---
----
 
+---
 
 ## Iterative v1
 
@@ -509,13 +529,14 @@ int iterative_v1(const std::vector<int> &data, int target) {
 }
 ```
 
-
 ---
+
 ---
 
 <img src="/assets/with_iterative_v1_small.png" />
 
 ---
+
 ---
 
 ## Iterative V2
@@ -533,26 +554,26 @@ int iterative_v2(const std::vector<int> &data, int target) {
 }
 ```
 
-
----
 ---
 
+---
 
 <img src="/assets/binsearch_all_small.png" />
 
 ---
----
 
+---
 
 <img src="/assets/binsearch_all_medium.png" />
 
 ---
----
 
+---
 
 <img src="/assets/binsearch_all_large.png" />
 
 ---
+
 ---
 
 - Eytzinger layout
@@ -561,14 +582,14 @@ int iterative_v2(const std::vector<int> &data, int target) {
 - [Cpp talk](https://www.youtube.com/watch?v=1RIPMQQRBWk)
 - [hpc algorithmica](https://en.algorithmica.org/hpc/data-structures/binary-search/)
 
-
----
 ---
 
+---
 
 <img src="/assets/binsearch_fast.png" />
 
 ---
+
 ---
 
 ## Hyperthreading
@@ -576,6 +597,7 @@ int iterative_v2(const std::vector<int> &data, int target) {
 - Számunkra csak akkor hasznos ha io-bound vagy memory-bound a program
 
 ---
+
 ---
 
 ## MultiThreading
@@ -596,20 +618,16 @@ start_counting(arr[1], 1'000);
 </v-click>
 
 ---
----
-
-
-
-
-
-
-
-
-
-
-
 
 ---
+
+## Kitekintés
+
+- [Uops](https://uops.info/table.html)
+- [In depth](https://www.agner.org/optimize/instruction_tables.pdf)
+
+---
+
 ---
 
 ### C++ érdekesség
@@ -631,5 +649,3 @@ auto rng = random_range({
 	.max = 1'000'000'000}
 );
 ```
-
-
