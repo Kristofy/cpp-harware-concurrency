@@ -40,7 +40,7 @@ static void add_simd_gen(benchmark::State &state) {
   int* data = targets.data();
   for (auto _ : state) {
     for (int z = 0; z < 1'024; z++) {
-      for (int i = 0; i < 1'024 / 8; i += 8) {
+      for (int i = 0; i < 1'024; i += 8) {
         for (int j = 0; j < 8; j++) {
           data[z] = data[i + j] + data[i + j];
         }

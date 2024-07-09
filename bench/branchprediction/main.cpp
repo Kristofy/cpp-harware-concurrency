@@ -83,8 +83,8 @@ static void random_branchless(benchmark::State &state) {
 // #define SETUP FIX_ITERATIONS ->Unit(benchmark::kMillisecond) ->Threads(8)
 #define SETUP ->Unit(benchmark::kMillisecond)
 
-BENCHMARK(always_hit) SETUP;
+// BENCHMARK(always_hit) SETUP;
 BENCHMARK(random) SETUP;
-BENCHMARK(random_branchless) SETUP;
+// BENCHMARK(random_branchless) SETUP;
 
 BENCHMARK_MAIN();
